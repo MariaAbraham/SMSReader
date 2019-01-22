@@ -1,9 +1,13 @@
 package com.manam.andorid.mobeeverification.smsreader;
 
+import android.Manifest;
 import android.content.ContentResolver;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.provider.Telephony;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
@@ -16,6 +20,8 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    final int permsRequestCode = 201;
+
     private List<Object> smsList;
     private final double hourInMilliSec = 3600000;
 
@@ -24,13 +30,40 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        ListView listView = findViewById(R.id.list_sms);
+        if (hasSMSPermission()) {
+            fetchAndPopulateSMS();
+            return;
+        }
+        requestSMSPermission();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case permsRequestCode:
+                boolean readSMSPermission = grantResults[1] == PackageManager.PERMISSION_GRANTED;
+                boolean receiveSMSPermission = grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+                if (readSMSPermission && receiveSMSPermission) {
+                    fetchAndPopulateSMS();
+                } else {
+                    requestSMSPermission();
+                }
+
+        }
+
+    }
+
+    private void fetchAndPopulateSMS() {
         getAllSmsFromProvider();
+        ListView listView = findViewById(R.id.list_sms);
+
         groupListBasedOnHours();
         smsList.removeAll(Collections.singleton(""));
         Animation animation = AnimationUtils.loadAnimation(this, R.anim.zoom_in);
 
-        SMSAdapter smsmAdapter = new SMSAdapter(this, smsList, getIntent() == null ? null : animation);
+        SMSAdapter smsmAdapter = new SMSAdapter(this, smsList, getIntent().getStringExtra("NEW_SMS") == null ? null : animation);
         listView.setAdapter(smsmAdapter);
     }
 
@@ -76,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
                 updateHeader(currentTime, index, 24, title);
                 continue;
             }
-            title = "24 hours ago";
+            title = "1 day ago";
             if ((currentTime - itemTime) < hourInMilliSec * 48) {
                 updateHeader(currentTime, index, 48, title);
                 continue;
@@ -111,5 +144,16 @@ public class MainActivity extends AppCompatActivity {
             throw new RuntimeException("No SMS in Inbox");
         }
         c.close();
+    }
+
+    private boolean hasSMSPermission() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+                || ActivityCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestSMSPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{
+                Manifest.permission.READ_SMS,
+                Manifest.permission.RECEIVE_SMS}, permsRequestCode);
     }
 }

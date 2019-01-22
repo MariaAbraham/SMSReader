@@ -47,6 +47,7 @@ public class SMSListener extends BroadcastReceiver {
 
 
                 Intent notificationIntent = new Intent(context, MainActivity.class);
+                notificationIntent.putExtra("NEW_SMS", "");
 
                 PendingIntent contentIntent = PendingIntent.getActivity(context, 1, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
